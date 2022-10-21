@@ -27,7 +27,7 @@ If you choose not to use the CloudFormation template, deploy the Jumpbox and Red
 - The Amazon Linux 2 AMI (64-bit x86) with the t2.micro instance type is an inexpensive and tested configuration
 - Add the Security Group configured for your Redshift database to your Jumpbox instance
 - Install psql with `sudo yum install postgresql.x86_64 -y`
-- Download this Github repo. `git clone --depth 1 https://github.com/RunningJon/redshift-benchmarks /home/ec2-user/redshift-benchmarks`
+- Download this Github repo. `git clone --depth 1 https://github.com/aws-samples/redshift-benchmarks /home/ec2-user/redshift-benchmarks`
 
 ### Redshift Setup
 - Set the following environment variables for Redshift:
