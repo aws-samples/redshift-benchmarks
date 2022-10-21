@@ -1,0 +1,196 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+	"Description" : "Redshift Serverless & ADX Demo",
+	"Parameters" : {
+		"LatestAmiId" : {
+			"Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+			"Default": "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2",
+			"Description": "Do not modify. This will get the latest AMI for the Jumpbox."
+		},
+		"KeyName": {
+			"Type": "AWS::EC2::KeyPair::KeyName",
+			"Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance. Be sure you have the private key for this keypair before continuing.",
+			"ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+		},
+		"InstanceType" : {
+			"Type" : "String",
+			"Description" : "The instance type for the Jumpbox. Recommendation is to use default t2.micro instance type.",
+			"Default" : "t2.micro",
+			"AllowedValues" : [ "t2.micro", "t2.small", "t2.medium", "t2.large" ]
+			,
+			"ConstraintDescription" : "must be a valid EC2 instance type."
+		},
+		"SSHLocation" : {
+			"Description" : "The IP address range that can be used to SSH to the EC2 instances.",
+			"Type": "String",
+			"MinLength": "9",
+			"MaxLength": "18",
+			"Default": "0.0.0.0/0",
+			"AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+			"ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+		},
+		"RedshiftCapacity" : {
+			"Description" : "The number of base RPUs for your Redshift Serverless Workgroup. Recommendation is to use the default 128 RPUs.",
+			"Type" : "String",
+			"Default" : "128",
+			"AllowedValues" : [ "32", "40", "48", "56", "64", "72", "80", "88", "96", "104", "112", "120", "128", "136", "144", "152", "160", "168", "176", "184", "192", "200", "208", "216", "224", "232", "240", "248", "256", "264", "272", "280", "288", "296", "304", "312", "320", "328", "336", "344", "352", "360", "368", "376", "384", "392", "400", "408", "416", "424", "432", "440", "448", "456", "464", "472", "480", "488", "496", "504", "512" ]
+		}
+	},
+	"Resources" : {
+		"JumpboxIAMRole":{ 
+			"Type":"AWS::IAM::Role",
+			"Properties":{ 
+				"AssumeRolePolicyDocument":{ 
+					"Statement":[{ 
+						"Action":[ "sts:AssumeRole" ], 
+						"Effect":"Allow", 
+						"Principal":{ "Service":[ "ec2.amazonaws.com" ] } 
+					}], 
+					"Version":"2012-10-17"
+				}, 
+				"Path":"/", 
+				"Policies": [{ 
+					"PolicyDocument":{ 
+						"Statement":[{
+							"Action":[ "iam:PassRole", "redshift-serverless:GetWorkgroup" ],
+							"Effect":"Allow", "Resource":"*" 
+						}] 
+					}, 
+					"PolicyName":"JumpboxPolicy"
+				}] 
+			} 
+		},
+		"InstanceProfile":{
+			"Type":"AWS::IAM::InstanceProfile",
+			"Properties":{
+				"Path":"/",
+				"Roles":[ { "Ref":"JumpboxIAMRole" } ]
+			}
+		},
+		"JumpSecurityGroup": {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription" : "Enable SSH access via port 22",
+				"Tags": [ { "Key": "Name", "Value": { "Fn::Join": [ "-", [{ "Ref":"AWS::StackName" }, "SecurityGroup"] ] } } ]
+			}
+		},
+		"JumpSecurityGroupSSH": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"DependsOn" : "JumpSecurityGroup",
+			"Properties": {
+				"Description": "SSH access",
+				"GroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] },
+				"IpProtocol": "tcp",
+				"FromPort": 22,
+				"ToPort": 22,
+				"CidrIp" : { "Ref" : "SSHLocation"}
+			}
+		},
+		"JumpSecurityGroupPing": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"DependsOn" : "JumpSecurityGroup",
+			"Properties": {
+				"Description": "Ping access for the internal network.",
+				"GroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] },
+				"IpProtocol" : "icmp",
+				"FromPort" : 8,
+				"ToPort" : -1,
+				"SourceSecurityGroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }
+			}
+		},
+		"JumpSecurityGroupTCP": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"DependsOn" : "JumpSecurityGroup",
+			"Properties": {
+				"Description": "TCP access for the internal network.",
+				"GroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] },
+				"IpProtocol" : "tcp",
+				"FromPort" : 0,
+				"ToPort" : 65535,
+				"SourceSecurityGroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }
+			}
+		},
+		"JumpSecurityGroupUDP": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"DependsOn" : "JumpSecurityGroup",
+			"Properties": {
+				"Description": "UDP access for the internal network.",
+				"GroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] },
+				"IpProtocol" : "udp",
+				"FromPort" : 0,
+				"ToPort" : 65535,
+				"SourceSecurityGroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }
+			}
+		},
+		"Namespace" : {
+			"Type" : "AWS::RedshiftServerless::Namespace",
+			"Properties" : {
+				"AdminUsername" : "awsuser",
+				"AdminUserPassword" : "R3dSh!ft",
+				"NamespaceName" : { "Fn::Join" : [ "-", [ { "Ref":"AWS::StackName" }, "namespace" ] ] }
+			},
+			"DependsOn" : "InstanceProfile"
+		},
+		"Workgroup" : {
+			"Type" : "AWS::RedshiftServerless::Workgroup",
+			"Properties" : {
+				"BaseCapacity" : { "Ref" : "RedshiftCapacity" },
+				"WorkgroupName" : { "Fn::Join" : [ "-", [ { "Ref":"AWS::StackName" }, "workgroup" ] ] },
+				"NamespaceName" : { "Fn::Join" : [ "-", [ { "Ref":"AWS::StackName" }, "namespace" ] ] },
+				"SecurityGroupIds" : [{ "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }]
+			},
+			"DependsOn" : "Namespace"
+		},
+		"Jumpbox" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"InstanceType" : { "Ref" : "InstanceType" },
+				"SecurityGroups" : [ { "Ref" : "JumpSecurityGroup" } ],
+				"KeyName" : { "Ref" : "KeyName" },
+				"ImageId" : { "Ref": "LatestAmiId" },
+				"IamInstanceProfile" : { "Ref" : "InstanceProfile" },
+				"Tags": [ { "Key": "Name", "Value": { "Fn::Join": [ "-", [{ "Ref":"AWS::StackName" }, "jumpbox"] ] } } ],
+				"UserData" : {
+					"Fn::Base64": {
+						"Fn::Join": [ "", [
+								"#!/bin/bash\n",
+								"yum install postgresql.x86_64 -y\n",
+								"yum install git -y\n",
+								"git clone --depth 1 https://github.com/RunningJon/redshift-benchmarks /home/ec2-user/redshift-benchmarks\n",
+								"chown -R ec2-user:ec2-user /home/ec2-user/redshift-benchmarks\n",
+								"yum remove awscli -y\n",
+								"curl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o \"/opt/aws/awscliv2.zip\"\n",
+								"unzip /opt/aws/awscliv2.zip -d /opt/aws/awscliv2\n",
+								"/opt/aws/awscliv2/aws/install\n",
+								"rm -rf /opt/aws/awscliv2\n",
+								"rm -f /opt/aws/awscliv2.zip\n",
+								"ln -s /usr/local/bin/aws /usr/bin/aws\n",
+								"ln -s /usr/local/bin/aws_completer /usr/bin/aws_completer\n",
+								"WORKGROUP=\"", { "Ref":"AWS::StackName" }, "-workgroup\"\n", 
+								"ENDPOINT=$(aws redshift-serverless get-workgroup --workgroup-name $WORKGROUP --query 'workgroup.endpoint.address' --output text)\n",
+								"echo \"export PGHOST=$ENDPOINT\" >> /home/ec2-user/.bashrc\n",
+								"echo \"export PGPORT=5439\" >> /home/ec2-user/.bashrc\n",
+								"echo \"export PGUSER=awsuser\" >> /home/ec2-user/.bashrc\n",
+								"echo \"export PGDATABASE=dev\" >> /home/ec2-user/.bashrc\n",
+								"echo \"${ENDPOINT}:5439:*:awsuser:R3dSh!ft\" > /home/ec2-user/.pgpass\n",
+								"chmod 600 /home/ec2-user/.pgpass\n",
+								"chown ec2-user:ec2-user /home/ec2-user/.pgpass\n"
+							]
+						]
+					}
+				}
+			},
+			"DependsOn" : "Workgroup"
+		}
+	},
+	"Outputs" : {
+		"LinuxUser" : {
+			"Description" : "Linux Username",
+			"Value" : "ec2-user"
+		},
+		"PublicIP" : {
+			"Description" : "Jumpbox Public IP address",
+			"Value" : { "Fn::GetAtt" : [ "Jumpbox", "PublicIp" ] }
+		}
+	}
+}

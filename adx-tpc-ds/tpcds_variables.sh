@@ -1,0 +1,3 @@
+EXT_SCHEMA="ext_tpcds1"
+EXPLAIN="false"
+MULTI_USER_COUNT="5"
