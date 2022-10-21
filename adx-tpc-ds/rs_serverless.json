@@ -156,7 +156,7 @@
 								"#!/bin/bash\n",
 								"yum install postgresql.x86_64 -y\n",
 								"yum install git -y\n",
-								"git clone --depth 1 https://github.com/RunningJon/redshift-benchmarks /home/ec2-user/redshift-benchmarks\n",
+								"git clone --depth 1 https://github.com/aws-samples/redshift-benchmarks /home/ec2-user/redshift-benchmarks\n",
 								"chown -R ec2-user:ec2-user /home/ec2-user/redshift-benchmarks\n",
 								"yum remove awscli -y\n",
 								"curl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o \"/opt/aws/awscliv2.zip\"\n",
