@@ -2,23 +2,10 @@
 	"AWSTemplateFormatVersion" : "2010-09-09",
 	"Description" : "Redshift Serverless & ADX Demo",
 	"Parameters" : {
-		"LatestAmiId" : {
-			"Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
-			"Default": "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2",
-			"Description": "Do not modify. This will get the latest AMI for the Jumpbox."
-		},
 		"KeyName": {
 			"Type": "AWS::EC2::KeyPair::KeyName",
 			"Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance. Be sure you have the private key for this keypair before continuing.",
 			"ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
-		},
-		"InstanceType" : {
-			"Type" : "String",
-			"Description" : "The instance type for the Jumpbox. Recommendation is to use default t2.micro instance type.",
-			"Default" : "t2.micro",
-			"AllowedValues" : [ "t2.micro", "t2.small", "t2.medium", "t2.large" ]
-			,
-			"ConstraintDescription" : "must be a valid EC2 instance type."
 		},
 		"SSHLocation" : {
 			"Description" : "The IP address range that can be used to SSH to the EC2 instances.",
@@ -127,7 +114,7 @@
 			"Properties" : {
 				"AdminUsername" : "awsuser",
 				"AdminUserPassword" : "R3dSh!ft",
-				"NamespaceName" : { "Fn::Join" : [ "-", [ { "Ref":"AWS::StackName" }, "namespace" ] ] }
+				"NamespaceName" : "demo"
 			},
 			"DependsOn" : "InstanceProfile"
 		},
@@ -135,8 +122,8 @@
 			"Type" : "AWS::RedshiftServerless::Workgroup",
 			"Properties" : {
 				"BaseCapacity" : { "Ref" : "RedshiftCapacity" },
-				"WorkgroupName" : { "Fn::Join" : [ "-", [ { "Ref":"AWS::StackName" }, "workgroup" ] ] },
-				"NamespaceName" : { "Fn::Join" : [ "-", [ { "Ref":"AWS::StackName" }, "namespace" ] ] },
+				"WorkgroupName" : "demo",
+				"NamespaceName" : "demo",
 				"SecurityGroupIds" : [{ "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }]
 			},
 			"DependsOn" : "Namespace"
@@ -144,10 +131,10 @@
 		"Jumpbox" : {
 			"Type" : "AWS::EC2::Instance",
 			"Properties" : {
-				"InstanceType" : { "Ref" : "InstanceType" },
+				"InstanceType" : "t2.micro",
 				"SecurityGroups" : [ { "Ref" : "JumpSecurityGroup" } ],
 				"KeyName" : { "Ref" : "KeyName" },
-				"ImageId" : { "Ref": "LatestAmiId" },
+				"ImageId" : "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}",
 				"IamInstanceProfile" : { "Ref" : "InstanceProfile" },
 				"Tags": [ { "Key": "Name", "Value": { "Fn::Join": [ "-", [{ "Ref":"AWS::StackName" }, "jumpbox"] ] } } ],
 				"UserData" : {
@@ -166,7 +153,7 @@
 								"rm -f /opt/aws/awscliv2.zip\n",
 								"ln -s /usr/local/bin/aws /usr/bin/aws\n",
 								"ln -s /usr/local/bin/aws_completer /usr/bin/aws_completer\n",
-								"WORKGROUP=\"", { "Ref":"AWS::StackName" }, "-workgroup\"\n", 
+								"WORKGROUP=\"demo-workgroup\"\n", 
 								"ENDPOINT=$(aws redshift-serverless get-workgroup --workgroup-name $WORKGROUP --query 'workgroup.endpoint.address' --output text)\n",
 								"echo \"export PGHOST=$ENDPOINT\" >> /home/ec2-user/.bashrc\n",
 								"echo \"export PGPORT=5439\" >> /home/ec2-user/.bashrc\n",

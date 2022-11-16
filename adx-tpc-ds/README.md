@@ -13,9 +13,7 @@ Note: Using the CloudFormation template is optional. You can execute the demo by
 
 ### Template Parameters
 - `Stack`: CloudFormation term used to define all of the resources created by the template.
-- `LatestAmiId`: This gets the latest Amazon Linux AMI dynamically. Use the default value and do not modify the value.
 - `KeyName`: This is the name of an existing Key Pair. If you don't have one already, create a Key Pair which is used to SSH to the Jumpbox.
-- `InstanceType`: This defines the EC2 Instance Type for the Jumpbox. The default is t2.micro which is sufficient for running this benchmark.
 - `SSHLocation`: The CIDR mask for incoming connections to the Jumpbox. The default is 0.0.0.0/0 which means any IP address is allowed to SSH to the Jumpbox provided the client has the Key Pair private key. You may choose to limit this to a smaller range of IP addresses if you like.
 - `RedshiftCapacity`: This is the number of RPUs for the Redshift Serverless Workgroup. The default is 128 and recommended for analyzing the larger TPC-DS datasets.
 
