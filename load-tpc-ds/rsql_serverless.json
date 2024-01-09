@@ -1,0 +1,197 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+	"Description" : "Redshift Serverless with rsql for benchmarking",
+	"Parameters" : {
+		"KeyName" : {
+			"Type" : "AWS::EC2::KeyPair::KeyName",
+			"Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance. Be sure you have the private key for this keypair before continuing.",
+			"ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+		},
+		"SSHLocation" : {
+			"Description" : "The IP address range that can be used to SSH to the EC2 instances.",
+			"Type" : "String",
+			"MinLength" : "9",
+			"MaxLength" : "18",
+			"Default" : "0.0.0.0/0",
+			"AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+			"ConstraintDescription" : "must be a valid IP CIDR range of the form x.x.x.x/x."
+		},
+		"RedshiftCapacity" : {
+			"Description" : "The number of base RPUs for your Redshift Serverless Workgroup. Recommendation is to use the default 128 RPUs.",
+			"Type" : "String",
+			"Default" : "128",
+			"AllowedValues" : [ "8", "16", "24", "32", "40", "48", "56", "64", "72", "80", "88", "96", "104", "112", "120", "128", "136", "144", "152", "160", "168", "176", "184", "192", "200", "208", "216", "224", "232", "240", "248", "256", "264", "272", "280", "288", "296", "304", "312", "320", "328", "336", "344", "352", "360", "368", "376", "384", "392", "400", "408", "416", "424", "432", "440", "448", "456", "464", "472", "480", "488", "496", "504", "512" ]
+		}
+	},
+	"Resources" : {
+		"DemoIAMRole" : { 
+			"Type" : "AWS::IAM::Role",
+			"Properties" : {
+				"AssumeRolePolicyDocument" : { 
+					"Statement" : [{ 
+						"Action" : [ "sts:AssumeRole" ], 
+						"Effect" : "Allow", 
+						"Principal" : { "Service" : [ "ec2.amazonaws.com", "redshift-serverless.amazonaws.com", "redshift.amazonaws.com" ] } 
+					}], 
+					"Version" : "2012-10-17"
+				}, 
+				"Path" : "/", 
+				"Policies" : [{ 
+					"PolicyDocument" : { 
+						"Statement" : [{
+							"Action" : [ "iam:PassRole", "s3:*", "redshift-serverless:*", "redshift:*" ],
+							"Effect" : "Allow", "Resource" : "*" 
+						}] 
+					}, 
+					"PolicyName" : "DemoPolicy"
+				}] 
+			} 
+		},
+		"InstanceProfile" : {
+			"Type" : "AWS::IAM::InstanceProfile",
+			"Properties" : {
+				"Path" : "/",
+				"Roles" : [ { "Ref" : "DemoIAMRole" } ]
+			}
+		},
+		"JumpSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Enable SSH access via port 22",
+				"Tags" : [ { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [{ "Ref" : "AWS::StackName" }, "SecurityGroup"] ] } } ]
+			}
+		},
+		"JumpSecurityGroupSSH" : {
+			"Type" : "AWS::EC2::SecurityGroupIngress",
+			"DependsOn" : "JumpSecurityGroup",
+			"Properties" : {
+				"Description" : "SSH access",
+				"GroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] },
+				"IpProtocol" : "tcp",
+				"FromPort" : 22,
+				"ToPort" : 22,
+				"CidrIp" : { "Ref" : "SSHLocation"}
+			}
+		},
+		"JumpSecurityGroupPing" : {
+			"Type" : "AWS::EC2::SecurityGroupIngress",
+			"DependsOn" : "JumpSecurityGroup",
+			"Properties" : {
+				"Description" : "Ping access for the internal network.",
+				"GroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] },
+				"IpProtocol" : "icmp",
+				"FromPort" : 8,
+				"ToPort" : -1,
+				"SourceSecurityGroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }
+			}
+		},
+		"JumpSecurityGroupTCP" : {
+			"Type" : "AWS::EC2::SecurityGroupIngress",
+			"DependsOn" : "JumpSecurityGroup",
+			"Properties" : {
+				"Description" : "TCP access for the internal network.",
+				"GroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] },
+				"IpProtocol" : "tcp",
+				"FromPort" : 0,
+				"ToPort" : 65535,
+				"SourceSecurityGroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }
+			}
+		},
+		"JumpSecurityGroupUDP" : {
+			"Type" : "AWS::EC2::SecurityGroupIngress",
+			"DependsOn" : "JumpSecurityGroup",
+			"Properties" : {
+				"Description" : "UDP access for the internal network.",
+				"GroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] },
+				"IpProtocol" : "udp",
+				"FromPort" : 0,
+				"ToPort" : 65535,
+				"SourceSecurityGroupId" : { "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }
+			}
+		},
+		"Namespace" : {
+			"Type" : "AWS::RedshiftServerless::Namespace",
+			"Properties" : {
+				"AdminUsername" : "awsuser",
+				"AdminUserPassword" : "R3dSh!ft",
+				"NamespaceName" : "demo",
+				"DefaultIamRoleArn" : { "Fn::GetAtt" : [ "DemoIAMRole", "Arn" ] },
+				"IamRoles" : [ { "Fn::GetAtt" : [ "DemoIAMRole", "Arn" ] } ]
+			},
+			"DependsOn" : "InstanceProfile"
+		},
+		"Workgroup" : {
+			"Type" : "AWS::RedshiftServerless::Workgroup",
+			"Properties" : {
+				"BaseCapacity" : { "Ref" : "RedshiftCapacity" },
+				"WorkgroupName" : "demo",
+				"NamespaceName" : "demo",
+				"SecurityGroupIds" : [{ "Fn::GetAtt" : ["JumpSecurityGroup", "GroupId"] }]
+			},
+			"DependsOn" : "Namespace"
+		},
+		"Jumpbox" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"InstanceType" : "t2.micro",
+				"SecurityGroups" : [ { "Ref" : "JumpSecurityGroup" } ],
+				"KeyName" : { "Ref" : "KeyName" },
+				"ImageId" : "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}",
+				"IamInstanceProfile" : { "Ref" : "InstanceProfile" },
+				"Tags" : [ { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [{ "Ref" : "AWS::StackName" }, "jumpbox"] ] } } ],
+				"UserData" : {
+					"Fn::Base64" : {
+						"Fn::Join" : [ "", [
+								"#!/bin/bash\n",
+								"yum -y remove awscli\n",
+								"curl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o \"/opt/aws/awscliv2.zip\"\n",
+								"unzip /opt/aws/awscliv2.zip -d /opt/aws/awscliv2\n",
+								"/opt/aws/awscliv2/aws/install\n",
+								"rm -rf /opt/aws/awscliv2\n",
+								"rm -f /opt/aws/awscliv2.zip\n",
+								"ln -s /usr/local/bin/aws /usr/bin/aws\n",
+								"ln -s /usr/local/bin/aws_completer /usr/bin/aws_completer\n",
+								"WORKGROUP=\"demo\"\n", 
+								"ENDPOINT=$(aws redshift-serverless get-workgroup --workgroup-name $WORKGROUP --query 'workgroup.endpoint.address' --output text)\n",
+								"echo \"export ODBCINI=~/.odbc.ini\" >> /home/ec2-user/.bashrc\n",
+								"echo \"export ODBCSYSINI=/opt/amazon/redshiftodbc/Setup\" >> /home/ec2-user/.bashrc\n",
+								"echo \"export AMAZONREDSHIFTODBCINI=/opt/amazon/redshiftodbc/lib/64/amazon.redshiftodbc.ini\" >> /home/ec2-user/.bashrc\n",
+								"yum install -y unixODBC openssl\n",
+								"yum install -y git\n",
+								"yum install -y https://s3.amazonaws.com/redshift-downloads/drivers/odbc/1.5.7.1007/AmazonRedshiftODBC-64-bit-1.5.7.1007-1.x86_64.rpm\n",
+								"yum install -y https://s3.amazonaws.com/redshift-downloads/amazon-redshift-rsql/1.0.8/AmazonRedshiftRsql-1.0.8.x86_64.rpm\n",
+								"cp /opt/amazon/redshiftodbc/Setup/odbc.ini /home/ec2-user/.odbc.ini\n",
+								"git clone --depth 1 https://github.com/aws-samples/redshift-benchmarks /home/ec2-user/redshift-benchmarks\n",
+								"chown -R ec2-user:ec2-user /home/ec2-user/redshift-benchmarks\n",
+								"echo \"[dev]\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"Driver=/opt/amazon/redshiftodbc/lib/64/libamazonredshiftodbc64.so\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"SSLMode=verify-ca\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"Min_TLS=1.2\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"boolsaschar=0\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"Host=${ENDPOINT}\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"Port=5439\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"Database=dev\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"UID=awsuser\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"PWD=R3dSh!ft\" >> /home/ec2-user/.odbc.ini\n",
+								"echo \"sslmode=prefer\" >> /home/ec2-user/.odbc.ini\n",
+								"chmod 600 /home/ec2-user/.odbc.ini\n",
+								"chown ec2-user:ec2-user /home/ec2-user/.odbc.ini\n"
+							]
+						]
+					}
+				}
+			},
+			"DependsOn" : "Workgroup"
+		}
+	},
+	"Outputs" : {
+		"LinuxUser" : {
+			"Description" : "Linux Username",
+			"Value" : "ec2-user"
+		},
+		"PublicIP" : {
+			"Description" : "Jumpbox Public IP address",
+			"Value" : { "Fn::GetAtt" : [ "Jumpbox", "PublicIp" ] }
+		}
+	}
+}

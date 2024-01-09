@@ -1,0 +1,31 @@
+create table catalog_returns
+(
+ cr_returned_date_sk int4 ,  
+  cr_returned_time_sk int4 , 
+  cr_item_sk int4 not null , 
+  cr_refunded_customer_sk int4 ,
+  cr_refunded_cdemo_sk int4 ,   
+  cr_refunded_hdemo_sk int4 ,   
+  cr_refunded_addr_sk int4 ,    
+  cr_returning_customer_sk int4 ,
+  cr_returning_cdemo_sk int4 ,   
+  cr_returning_hdemo_sk int4 ,  
+  cr_returning_addr_sk int4 ,   
+  cr_call_center_sk int4 ,      
+  cr_catalog_page_sk int4 ,     
+  cr_ship_mode_sk int4 ,        
+  cr_warehouse_sk int4 ,        
+  cr_reason_sk int4 ,           
+  cr_order_number int8 not null,
+  cr_return_quantity int4 ,     
+  cr_return_amount numeric(7,2) ,
+  cr_return_tax numeric(7,2) ,   
+  cr_return_amt_inc_tax numeric(7,2) ,
+  cr_fee numeric(7,2) ,         
+  cr_return_ship_cost numeric(7,2) , 
+  cr_refunded_cash numeric(7,2) ,    
+  cr_reversed_charge numeric(7,2) ,  
+  cr_store_credit numeric(7,2) ,
+  cr_net_loss numeric(7,2)      
+  ,primary key (cr_item_sk, cr_order_number)
+) distkey(cr_item_sk) sortkey(cr_returned_date_sk);
