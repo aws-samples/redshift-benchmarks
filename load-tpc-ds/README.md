@@ -27,7 +27,7 @@ If you choose not to use the CloudFormation template, deploy the EC2 instance an
 
 ### Linux EC2 instance setup
 - Deploy a VM in the same AWS Region as your Redshift database using the Amazon Linux 2 AMI 
-- The Amazon Linux 2 AMI (64-bit x86) with the t2.micro instance type is an inexpensive and tested configuration
+- The Amazon Linux 2 AMI (64-bit x86) with the t2.medium instance type is an inexpensive and tested configuration
 - Add the Security Group configured for your Redshift database to your EC2 instance
 - Install [rsql](https://docs.aws.amazon.com/redshift/latest/mgmt/rsql-query-tool-getting-started.html)
 - Download this Github repo. `git clone --depth 1 https://github.com/aws-samples/redshift-benchmarks /home/ec2-user/redshift-benchmarks`

@@ -130,15 +130,15 @@
 			},
 			"DependsOn" : "Namespace"
 		},
-		"Jumpbox" : {
+		"VM" : {
 			"Type" : "AWS::EC2::Instance",
 			"Properties" : {
-				"InstanceType" : "t2.micro",
+				"InstanceType" : "t2.medium",
 				"SecurityGroups" : [ { "Ref" : "JumpSecurityGroup" } ],
 				"KeyName" : { "Ref" : "KeyName" },
 				"ImageId" : "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}",
 				"IamInstanceProfile" : { "Ref" : "InstanceProfile" },
-				"Tags" : [ { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [{ "Ref" : "AWS::StackName" }, "jumpbox"] ] } } ],
+				"Tags" : [ { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [{ "Ref" : "AWS::StackName" }, "vm"] ] } } ],
 				"UserData" : {
 					"Fn::Base64" : {
 						"Fn::Join" : [ "", [
@@ -190,8 +190,8 @@
 			"Value" : "ec2-user"
 		},
 		"PublicIP" : {
-			"Description" : "Jumpbox Public IP address",
-			"Value" : { "Fn::GetAtt" : [ "Jumpbox", "PublicIp" ] }
+			"Description" : "VM Public IP address",
+			"Value" : { "Fn::GetAtt" : [ "VM", "PublicIp" ] }
 		}
 	}
 }
