@@ -13,10 +13,10 @@ A simple CloudFormation template, `rsql_serverless.json`, is included in this re
 Note: Using the CloudFormation template is optional. You can execute the demo by manually provisioning the Jumpbox and Redshift Serverless resources.
 
 ### Template Parameters
-- `Stack`: CloudFormation term used to define all of the resources created by the template.
-- `KeyName`: This is the name of an existing Key Pair. If you don't have one already, create a Key Pair which is used to SSH to the Jumpbox.
-- `SSHLocation`: The CIDR mask for incoming connections to the Jumpbox. The default is 0.0.0.0/0 which means any IP address is allowed to SSH to the Jumpbox provided the client has the Key Pair private key. You may choose to limit this to a smaller range of IP addresses if you like.
-- `RedshiftCapacity`: This is the number of RPUs for the Redshift Serverless Workgroup. The default is 128 and recommended for analyzing the larger TPC-DS datasets.
+- `Stack` : CloudFormation term used to define all of the resources created by the template.
+- `KeyName` : This is the name of an existing Key Pair. If you don't have one already, create a Key Pair which is used to SSH to the Jumpbox.
+- `SSHLocation` : The CIDR mask for incoming connections to the Jumpbox. The default is 0.0.0.0/0 which means any IP address is allowed to SSH to the Jumpbox provided the client has the Key Pair private key. You may choose to limit this to a smaller range of IP addresses if you like.
+- `RedshiftCapacity` : This is the number of RPUs for the Redshift Serverless Workgroup. The default is 128 and recommended for analyzing the larger TPC-DS datasets.
 
 
 ## Manual Setup
@@ -37,32 +37,29 @@ If you choose not to use the CloudFormation template, deploy the Jumpbox and Red
 - On your Jumpbox, `cd /home/ec2-user/redshift-benchmarks/load-tpc-ds/`
 - Configure the variables for the scripts in `tpcds_variables.sh`.
 
-`DSN="dev"`
-The value for the DSN you are testing with.
+- `DSN="dev"` : The value for the DSN you are testing with.
 
-`SCHEMA_NAME="tpcds"`
-The name of the schema that will be used by Redshift.
+- `SCHEMA_NAME="tpcds"` : The name of the schema that will be used by Redshift.
 
-`EXPLAIN="false"`
-Queries will generate explain plans rather than actually running. Each query will be logged in the log directory.
+- `EXPLAIN="false"` : Queries will generate explain plans rather than actually running. Each query will be logged in the log directory.
 
-`MULTI_USER_COUNT="5"`
-`N` concurrent users will execute the queries. The order of the queries are set randomly at runtie. Setting to 0 will skip the multi-user test.
+- `MULTI_USER_COUNT="5"` : `N` concurrent users will execute the queries. The order of the queries are set randomly at runtie. Setting to 0 will skip the multi-user test.
 
-`SCALE="3TB"`
-Scale of the test. Available values are: 10GB, 100GB, 1TB, 3TB, 10TB, 30TB, 100TB.
+- `SCALE="3TB"` : Scale of the test. Available values are: 10GB, 100GB, 1TB, 3TB, 10TB, 30TB, 100TB.
 
-`SOURCE_BUCKET="redshift-downloads/TPC-DS/2.13"`
-Source bucket where the generated data resides.
+- `SOURCE_BUCKET="redshift-downloads/TPC-DS/2.13"` : Source bucket where the generated data resides. This should not be changed.
 
-`TEMP_BUCKET="jgrcloud-temp"`
-Note: You must update this to a bucket in your account!
-This is the name of the temporary bucket where files are staged to load into Redshift. This bucket is removes the temporary files at the end of the test.
+- `TEMP_BUCKET="jgrcloud-temp"` : You must update this to a bucket in your account! This is the name of the temporary bucket where files are staged to load into Redshift. This bucket is removes the temporary files at the end of the test.
 
 ## Executing the Benchmark Script
 - SSH to the Jumpbox as `ec2-user`
-- Execute: `cd /home/ec2-user/redshift-benchmarks/load-tpc-ds/`
-- Execute the benchmark: `./rollout.sh > rollout.log 2>&1 &`
+- Execute: 
+
+```
+cd /home/ec2-user/redshift-benchmarks/load-tpc-ds/
+./rollout.sh > rollout.log 2>&1 &
+```
+
 - You can use `tail -f rollout.log` to monitor progress
 - Once complete, the log file will show the results of the benchmark
 - Example output:
