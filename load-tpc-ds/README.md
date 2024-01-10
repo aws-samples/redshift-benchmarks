@@ -55,7 +55,7 @@ If you choose not to use the CloudFormation template, deploy the EC2 instance an
 - `TEMP_BUCKET="jgrcloud-temp"` : You must update this to a bucket in your account! This is the name of the temporary bucket where files are staged to load into Redshift. This bucket is removes the temporary files at the end of the test.
 
 ## Executing the Benchmark Script
-- SSH to the Jumpbox as `ec2-user`
+- SSH to the EC2 instance as `ec2-user`
 - Execute: 
 
 ```
