@@ -44,23 +44,25 @@ load_data()
 }
 load_multisql_data()
 {
-	base_bucket="s3://${TEMP_BUCKET}/${temp_dir}/multi/"
-	for i in $(seq 1 ${MULTI_USER_COUNT}); do
-		logfile="rollout_testing_${i}.log"
-		echo "aws s3 cp ${logdir}/${logfile} ${base_bucket}"
-		aws s3 cp ${logdir}/${logfile} ${base_bucket}
-	done
+	if [ "$MULTI_USER_COUNT" -gt "0" ]; then
+		base_bucket="s3://${TEMP_BUCKET}/${temp_dir}/multi/"
+		for i in $(seq 1 ${MULTI_USER_COUNT}); do
+			logfile="rollout_testing_${i}.log"
+			echo "aws s3 cp ${logdir}/${logfile} ${base_bucket}"
+			aws s3 cp ${logdir}/${logfile} ${base_bucket}
+		done
 
-	for i in $(ls ${PWD}/*.multicopy.*.sql); do
-		short_i=$(basename ${i})
-		id=$(echo ${short_i} | awk -F '.' '{print $1}')
-		tablename=$(echo ${short_i} | awk -F '.' '{print $3}')
-		echo "tablename: ${tablename}"
-		bucket_path="'${base_bucket}'"
+		for i in $(ls ${PWD}/*.multicopy.*.sql); do
+			short_i=$(basename ${i})
+			id=$(echo ${short_i} | awk -F '.' '{print $1}')
+			tablename=$(echo ${short_i} | awk -F '.' '{print $3}')
+			echo "tablename: ${tablename}"
+			bucket_path="'${base_bucket}'"
 
-		echo "Loading ${tablename}"
-		rsql -D ${DSN} -f ${i} -v bucket_path="${bucket_path}"
-	done
+			echo "Loading ${tablename}"
+			rsql -D ${DSN} -f ${i} -v bucket_path="${bucket_path}"
+		done
+	fi
 }
 get_totals()
 {
